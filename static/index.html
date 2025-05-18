@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -69,7 +68,7 @@
 
     async function updateMap() {
       try {
-        const res = await fetch("http://192.168.1.17:8000/status");
+        const res = await fetch("/status");
         const parkingSpots = await res.json();
 
         const selectedZone = document.getElementById("zone-filter").value;
@@ -93,7 +92,6 @@
             occupied++;
           }
 
-          // Appliquer le filtre de zone
           if (selectedZone !== "all" && zone !== selectedZone) return;
 
           const existing = markers.get(spot.id);
@@ -119,7 +117,6 @@
           lastStatuses.set(spot.id, status);
         });
 
-        // Mise à jour du journal
         const logContainer = document.getElementById("change-log");
         logContainer.innerHTML = "";
         changeLog.forEach(entry => {
@@ -128,7 +125,6 @@
           logContainer.appendChild(li);
         });
 
-        // Mise à jour des compteurs
         document.getElementById("count-free").textContent = free;
         document.getElementById("count-occupied").textContent = occupied;
         document.getElementById("count-total").textContent = parkingSpots.length;
@@ -139,7 +135,6 @@
           zoneSummary.appendChild(el);
         }
 
-        // Mettre à jour les options de filtre de zone
         const filter = document.getElementById("zone-filter");
         if (filter.options.length === 1) {
           allZones.forEach(z => {
