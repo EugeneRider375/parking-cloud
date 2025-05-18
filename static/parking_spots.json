@@ -1,0 +1,107 @@
+[
+  {
+    "id": "p1",
+    "zone": "Zone Gare",
+    "lat": 49.3603560293344,
+    "lon": 0.08407115936279298,
+    "status": "occupied"
+  },
+  {
+    "id": "p2",
+    "zone": "Zone Gare",
+    "lat": 49.36033856011967,
+    "lon": 0.0839531421661377,
+    "status": "occupied"
+  },
+  {
+    "id": "p3",
+    "zone": "Zone Gare",
+    "lat": 49.36031235628596,
+    "lon": 0.08383512496948244,
+    "status": "free"
+  },
+  {
+    "id": "p4",
+    "zone": "Zone Gare",
+    "lat": 49.360273923971256,
+    "lon": 0.08371174335479738,
+    "status": "free"
+  },
+  {
+    "id": "p5",
+    "zone": "Zone Gare",
+    "lat": 49.36024247932778,
+    "lon": 0.08357226848602296,
+    "status": "occupied"
+  },
+  {
+    "id": "p6",
+    "zone": "Zone March\u00e9",
+    "lat": 49.36049578282876,
+    "lon": 0.07779479026794435,
+    "status": "occupied"
+  },
+  {
+    "id": "p7",
+    "zone": "Zone March\u00e9",
+    "lat": 49.36042939996847,
+    "lon": 0.07775992155075075,
+    "status": "free"
+  },
+  {
+    "id": "p8",
+    "zone": "Zone March\u00e9",
+    "lat": 49.36036301701856,
+    "lon": 0.07772505283355714,
+    "status": "free"
+  },
+  {
+    "id": "p9",
+    "zone": "Zone March\u00e9",
+    "lat": 49.36030711551754,
+    "lon": 0.07769018411636354,
+    "status": "free"
+  },
+  {
+    "id": "p10",
+    "zone": "Zone March\u00e9",
+    "lat": 49.36024422625296,
+    "lon": 0.07765531539916994,
+    "status": "occupied"
+  },
+  {
+    "id": "p11",
+    "zone": "Zone Centre",
+    "lat": 49.35980923997101,
+    "lon": 0.07733345031738283,
+    "status": "free"
+  },
+  {
+    "id": "p12",
+    "zone": "Zone Centre",
+    "lat": 49.35972888063842,
+    "lon": 0.07717519998550416,
+    "status": "free"
+  },
+  {
+    "id": "p13",
+    "zone": "Zone Centre",
+    "lat": 49.35960135360197,
+    "lon": 0.07729589939117433,
+    "status": "free"
+  },
+  {
+    "id": "p14",
+    "zone": "Zone Centre",
+    "lat": 49.35965900285119,
+    "lon": 0.07749974727630617,
+    "status": "free"
+  },
+  {
+    "id": "p15",
+    "zone": "Zone Centre",
+    "lat": 49.35979177056204,
+    "lon": 0.07751315832138063,
+    "status": "free"
+  }
+]

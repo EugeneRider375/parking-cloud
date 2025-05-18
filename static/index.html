@@ -1,10 +1,163 @@
+
 <!DOCTYPE html>
-<html>
-  <head>
-    <title>Parking App</title>
-    <meta charset="UTF-8" />
-  </head>
-  <body>
-    <h1>Добро пожаловать в Парковки (облако)!</h1>
-  </body>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tableau de bord - Stationnement</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    #map { height: 100%; }
+    .marker-free { background-color: #86efac; border: 2px solid #22c55e; border-radius: 50%; width: 20px; height: 20px; }
+    .marker-occupied { background-color: #fca5a5; border: 2px solid #ef4444; border-radius: 50%; width: 20px; height: 20px; }
+  </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+  <div class="flex h-screen">
+    <div class="w-full md:w-1/3 p-4 bg-white overflow-y-auto shadow-md">
+      <h1 class="text-2xl font-bold mb-4">🚦 Tableau de bord</h1>
+
+      <div class="mb-4">
+        <p><strong>Dernière mise à jour :</strong> <span id="last-updated">—</span></p>
+      </div>
+
+      <div class="mb-4">
+        <label for="zone-filter" class="font-semibold">Filtrer par zone :</label>
+        <select id="zone-filter" class="w-full border border-gray-300 p-1 mt-1">
+          <option value="all">Toutes les zones</option>
+        </select>
+      </div>
+
+      <div class="mb-4">
+        <p><strong>Statistiques par zone :</strong></p>
+        <div id="zone-summary" class="space-y-2 mt-2"></div>
+      </div>
+
+      <div class="border-t pt-4 mt-4">
+        <p><strong>Total :</strong></p>
+        <p>Libres : <span id="count-free">0</span></p>
+        <p>Occupées : <span id="count-occupied">0</span></p>
+        <p>Total des places : <span id="count-total">0</span></p>
+      </div>
+
+      <div class="border-t pt-4 mt-4">
+        <p><strong>Journal des changements :</strong></p>
+        <ul id="change-log" class="text-sm space-y-1 mt-2"></ul>
+      </div>
+    </div>
+
+    <div id="map" class="flex-1"></div>
+  </div>
+
+  <script>
+    const map = L.map('map').setView([49.3595, 0.0825], 17);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
+    }).addTo(map);
+
+    const markers = new Map();
+    const lastStatuses = new Map();
+    const changeLog = [];
+    const allZones = new Set();
+
+    function updateTimestamp() {
+      const now = new Date();
+      document.getElementById("last-updated").textContent = now.toLocaleTimeString();
+    }
+
+    async function updateMap() {
+      try {
+        const res = await fetch("http://192.168.1.17:8000/status");
+        const parkingSpots = await res.json();
+
+        const selectedZone = document.getElementById("zone-filter").value;
+
+        let free = 0, occupied = 0;
+        const zoneStats = {};
+        const zoneSummary = document.getElementById("zone-summary");
+        zoneSummary.innerHTML = "";
+
+        parkingSpots.forEach(spot => {
+          const status = spot.status;
+          const zone = spot.zone || 'Autre';
+          allZones.add(zone);
+
+          if (!zoneStats[zone]) zoneStats[zone] = { free: 0, occupied: 0 };
+          if (status === 'free') {
+            zoneStats[zone].free++;
+            free++;
+          } else {
+            zoneStats[zone].occupied++;
+            occupied++;
+          }
+
+          // Appliquer le filtre de zone
+          if (selectedZone !== "all" && zone !== selectedZone) return;
+
+          const existing = markers.get(spot.id);
+          const div = document.createElement('div');
+          div.className = status === 'free' ? 'marker-free' : 'marker-occupied';
+          const icon = L.divIcon({ className: '', html: div.outerHTML, iconSize: [20, 20] });
+
+          if (existing) {
+            existing.setIcon(icon);
+          } else {
+            const marker = L.marker([spot.lat, spot.lon], { icon }).addTo(map)
+              .bindPopup(`Place ${spot.id} : ${status}`);
+            markers.set(spot.id, marker);
+          }
+
+          const prevStatus = lastStatuses.get(spot.id);
+          if (prevStatus && prevStatus !== status) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] Place ${spot.id} : ${prevStatus} → ${status}`;
+            changeLog.unshift(logEntry);
+            if (changeLog.length > 10) changeLog.pop();
+          }
+          lastStatuses.set(spot.id, status);
+        });
+
+        // Mise à jour du journal
+        const logContainer = document.getElementById("change-log");
+        logContainer.innerHTML = "";
+        changeLog.forEach(entry => {
+          const li = document.createElement("li");
+          li.textContent = entry;
+          logContainer.appendChild(li);
+        });
+
+        // Mise à jour des compteurs
+        document.getElementById("count-free").textContent = free;
+        document.getElementById("count-occupied").textContent = occupied;
+        document.getElementById("count-total").textContent = parkingSpots.length;
+
+        for (const [zone, stats] of Object.entries(zoneStats)) {
+          const el = document.createElement('div');
+          el.innerHTML = `<strong>${zone}</strong> : libres ${stats.free}, occupées ${stats.occupied}`;
+          zoneSummary.appendChild(el);
+        }
+
+        // Mettre à jour les options de filtre de zone
+        const filter = document.getElementById("zone-filter");
+        if (filter.options.length === 1) {
+          allZones.forEach(z => {
+            const opt = document.createElement("option");
+            opt.value = z;
+            opt.textContent = z;
+            filter.appendChild(opt);
+          });
+        }
+
+        updateTimestamp();
+      } catch (e) {
+        console.error("Erreur de chargement des données :", e);
+      }
+    }
+
+    updateMap();
+    setInterval(updateMap, 10000);
+  </script>
+</body>
 </html>
