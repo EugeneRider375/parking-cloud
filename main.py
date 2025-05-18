@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -7,37 +7,29 @@ import os
 
 app = FastAPI()
 
-# Папка со статикой
+# Статика
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Основная страница
 @app.get("/")
 async def root():
     return FileResponse("static/index.html")
 
-# Отдаём JSON с парковками
 @app.get("/parking_spots.json")
 async def get_parking_spots():
     return FileResponse("static/parking_spots.json")
 
-# ====== Хранилище статусов ======
+# Путь к файлу статусов
 status_file = "static/parking_status.json"
 
-# Если файла нет — создаём пустые статусы
+# Создание начального файла статусов
 if not os.path.exists(status_file):
     with open("static/parking_spots.json") as f:
         spots = json.load(f)
-    initial = {spot["id"]: "free" for spot in spots}
+    initial_status = {str(spot["id"]): "free" for spot in spots}
     with open(status_file, "w") as f:
-        json.dump(initial, f)
+        json.dump(initial_status, f)
 
-# ==== Получить текущий статус ====
-@app.get("/get_status")
-async def get_status():
-    with open(status_file) as f:
-        return JSONResponse(content=json.load(f))
-
-# ==== Обновить статус ====
+# Модель обновления статуса
 class StatusUpdate(BaseModel):
     id: str
     status: str  # "free" или "occupied"
@@ -50,3 +42,22 @@ async def update_status(update: StatusUpdate):
     with open(status_file, "w") as f:
         json.dump(statuses, f)
     return {"result": "ok"}
+
+# Эндпоинт /status — объединяет данные для карты
+@app.get("/status")
+async def get_combined_status():
+    with open("static/parking_spots.json") as f:
+        spots = json.load(f)
+    with open(status_file) as f:
+        statuses = json.load(f)
+
+    combined = []
+    for spot in spots:
+        combined.append({
+            "id": spot["id"],
+            "lat": spot["lat"],
+            "lon": spot["lon"],
+            "zone": spot["zone"],
+            "status": statuses.get(str(spot["id"]), "free")
+        })
+    return JSONResponse(content=combined)
