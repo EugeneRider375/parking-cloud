@@ -1,119 +1,116 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Tableau de bord</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <style>
-        body {
-            display: flex;
-            margin: 0;
-            font-family: Arial, sans-serif;
-        }
-        #sidebar {
-            width: 300px;
-            padding: 10px;
-            background: #f9f9f9;
-            border-right: 1px solid #ccc;
-        }
-        #map {
-            flex-grow: 1;
-            height: 100vh;
-        }
-        h2 {
-            margin-top: 0;
-        }
-        select, p {
-            font-size: 14px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>Tableau de bord</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <style>
+    body { margin: 0; display: flex; font-family: sans-serif; }
+    #sidebar {
+      width: 300px;
+      padding: 10px;
+      background: #f4f4f4;
+      border-right: 1px solid #ccc;
+      font-size: 14px;
+    }
+    #map {
+      flex: 1;
+      height: 100vh;
+    }
+    h1 { margin-top: 0; }
+  </style>
 </head>
 <body>
-    <div id="sidebar">
-        <h2>🚦 Tableau de bord</h2>
-        <p><strong>Dernière mise à jour :</strong> <span id="last-update">—</span></p>
-        <label for="zone-select">Filtrer par zone :</label>
-        <select id="zone-select">
-            <option value="all">Toutes les zones</option>
-        </select>
-        <h3>Statistiques par zone :</h3>
-        <p><strong>Total :</strong></p>
-        <p>Libres : <span id="free-count">0</span></p>
-        <p>Occupées : <span id="occupied-count">0</span></p>
-        <p>Total des places : <span id="total-count">0</span></p>
-        <h4>Journal des changements :</h4>
-        <ul id="change-log"></ul>
-    </div>
-    <div id="map"></div>
+  <div id="sidebar">
+    <h1>Tableau de bord</h1>
+    <p><strong>Dernière mise à jour :</strong> <span id="last-update">–</span></p>
+    <label for="zone-select"><strong>Filtrer par zone :</strong></label><br>
+    <select id="zone-select">
+      <option value="all">Toutes les zones</option>
+    </select>
+    <h3>Statistiques par zone :</h3>
+    <p><strong>Total :</strong></p>
+    <p>Libres : <span id="free-count">0</span></p>
+    <p>Occupées : <span id="occupied-count">0</span></p>
+    <p>Total des places : <span id="total-count">0</span></p>
+    <h3>Journal des changements :</h3>
+    <ul id="change-log"></ul>
+  </div>
+  <div id="map"></div>
 
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script>
-        const map = L.map('map').setView([49.3601, 0.0831], 16);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script>
+    const map = L.map('map').setView([49.36, 0.08], 17);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    const zoneSelect = document.getElementById('zone-select');
+    const freeCount = document.getElementById('free-count');
+    const occupiedCount = document.getElementById('occupied-count');
+    const totalCount = document.getElementById('total-count');
+    const lastUpdate = document.getElementById('last-update');
+    const changeLog = document.getElementById('change-log');
+
+    let markers = [];
+
+    function updateStats(spots) {
+      const total = spots.length;
+      const occupied = spots.filter(p => p.status === 'occupied').length;
+      const free = total - occupied;
+
+      freeCount.textContent = free;
+      occupiedCount.textContent = occupied;
+      totalCount.textContent = total;
+    }
+
+    function drawMarkers(spots) {
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
+
+      const zoneSet = new Set();
+      const selectedZone = zoneSelect.value;
+
+      const filtered = selectedZone === "all"
+        ? spots
+        : spots.filter(p => p.zone === selectedZone);
+
+      filtered.forEach(spot => {
+        const color = spot.status === 'occupied' ? 'red' : 'green';
+        const marker = L.circleMarker([spot.lat, spot.lon], {
+          radius: 8,
+          color,
+          fillColor: color,
+          fillOpacity: 0.8
         }).addTo(map);
+        marker.bindPopup(`<b>${spot.id}</b><br>Zone: ${spot.zone}<br>Status: ${spot.status}`);
+        markers.push(marker);
+        zoneSet.add(spot.zone);
+      });
 
-        let allMarkers = [];
-        let allData = [];
+      updateStats(filtered);
 
-        const zoneSelect = document.getElementById("zone-select");
-        const freeCount = document.getElementById("free-count");
-        const occupiedCount = document.getElementById("occupied-count");
-        const totalCount = document.getElementById("total-count");
-        const changeLog = document.getElementById("change-log");
-        const lastUpdate = document.getElementById("last-update");
+      if (zoneSelect.options.length <= 1) {
+        zoneSet.forEach(zone => {
+          const opt = document.createElement('option');
+          opt.value = zone;
+          opt.textContent = zone;
+          zoneSelect.appendChild(opt);
+        });
+      }
+    }
 
-        function updateStats(filtered) {
-            let free = filtered.filter(s => s.status === "free").length;
-            let occupied = filtered.filter(s => s.status === "occupied").length;
-            freeCount.textContent = free;
-            occupiedCount.textContent = occupied;
-            totalCount.textContent = filtered.length;
-            lastUpdate.textContent = new Date().toLocaleTimeString();
-        }
-
-        function drawMarkers(data) {
-            allMarkers.forEach(m => map.removeLayer(m));
-            allMarkers = [];
-
-            const selectedZone = zoneSelect.value;
-            const filtered = selectedZone === "all" ? data : data.filter(s => s.zone === selectedZone);
-
-            updateStats(filtered);
-
-            filtered.forEach(spot => {
-                const color = spot.status === "occupied" ? "red" : "green";
-                const marker = L.circleMarker([spot.lat, spot.lng], {
-                    radius: 8,
-                    fillColor: color,
-                    color: "#000",
-                    weight: 1,
-                    opacity: 1,
-                    fillOpacity: 0.8
-                }).addTo(map).bindPopup(`${spot.zone}<br>${spot.status}`);
-                allMarkers.push(marker);
-            });
-        }
-
-        fetch("static/parking_spots.json")
-            .then(res => res.json())
-            .then(data => {
-                allData = data;
-
-                const zones = [...new Set(data.map(s => s.zone))];
-                zones.forEach(z => {
-                    const option = document.createElement("option");
-                    option.value = z;
-                    option.textContent = z;
-                    zoneSelect.appendChild(option);
-                });
-
-                drawMarkers(data);
-            });
-
-        zoneSelect.addEventListener("change", () => drawMarkers(allData));
-    </script>
+    fetch("/static/parking_spots.json")
+      .then(r => r.json())
+      .then(data => {
+        drawMarkers(data);
+        lastUpdate.textContent = new Date().toLocaleString();
+        zoneSelect.addEventListener('change', () => drawMarkers(data));
+      })
+      .catch(err => {
+        console.error("Erreur de chargement du fichier JSON:", err);
+      });
+  </script>
 </body>
 </html>
