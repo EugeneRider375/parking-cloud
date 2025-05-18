@@ -1,63 +1,51 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import json
 import os
 
 app = FastAPI()
 
-# Статика
+# CORS для доступа из любых источников (например, из браузера)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # можно ограничить конкретными адресами
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Подключаем статику
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Основная страница
 @app.get("/")
-async def root():
+def read_root():
     return FileResponse("static/index.html")
 
-@app.get("/parking_spots.json")
-async def get_parking_spots():
-    return FileResponse("static/parking_spots.json")
+# Возвращает актуальный статус парковок
+@app.get("/status")
+def get_status():
+    with open("static/parking_spots.json", "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return JSONResponse(content=data)
 
-# Путь к файлу статусов
-status_file = "static/parking_status.json"
-
-# Создание начального файла статусов
-if not os.path.exists(status_file):
-    with open("static/parking_spots.json") as f:
-        spots = json.load(f)
-    initial_status = {str(spot["id"]): "free" for spot in spots}
-    with open(status_file, "w") as f:
-        json.dump(initial_status, f)
-
-# Модель обновления статуса
-class StatusUpdate(BaseModel):
+# Приём обновлений статуса парковки
+class ParkingStatus(BaseModel):
     id: str
-    status: str  # "free" или "occupied"
+    status: str
 
 @app.post("/update_status")
-async def update_status(update: StatusUpdate):
-    with open(status_file) as f:
-        statuses = json.load(f)
-    statuses[update.id] = update.status
-    with open(status_file, "w") as f:
-        json.dump(statuses, f)
-    return {"result": "ok"}
-
-# Эндпоинт /status — объединяет данные для карты
-@app.get("/status")
-async def get_combined_status():
-    with open("static/parking_spots.json") as f:
+async def update_status(data: ParkingStatus):
+    file_path = "static/parking_spots.json"
+    with open(file_path, "r", encoding="utf-8") as f:
         spots = json.load(f)
-    with open(status_file) as f:
-        statuses = json.load(f)
-
-    combined = []
     for spot in spots:
-        combined.append({
-            "id": spot["id"],
-            "lat": spot["lat"],
-            "lon": spot["lon"],
-            "zone": spot["zone"],
-            "status": statuses.get(str(spot["id"]), "free")
-        })
-    return JSONResponse(content=combined)
+        if spot["id"] == data.id:
+            spot["status"] = data.status
+            break
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(spots, f, indent=2, ensure_ascii=False)
+    return {"message": f"Status updated for spot {data.id}"}
